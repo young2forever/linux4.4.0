@@ -404,17 +404,17 @@ extern bool force_irqthreads;
    tasklets are more than enough. F.e. all serial device BHs et
    al. should be converted to tasklets, not to softirqs.
  */
-
-enum
+//dayy: 如果你的工作不是非常高频地被执行，请尽量不要定义 softirq，使用 tasklet 来代替处理。
+enum                                //dayy: 内核目前实现的软中断
 {
-	HI_SOFTIRQ=0,
-	TIMER_SOFTIRQ,
-	NET_TX_SOFTIRQ,
-	NET_RX_SOFTIRQ,
-	BLOCK_SOFTIRQ,
-	BLOCK_IOPOLL_SOFTIRQ,
-	TASKLET_SOFTIRQ,
-	SCHED_SOFTIRQ,
+	HI_SOFTIRQ=0,                   //dayy: 用于高优先级的tasklet
+	TIMER_SOFTIRQ,                  //dayy: for software timer的（所谓software timer就是说该timer是基于系统tick的）
+	NET_TX_SOFTIRQ,                 //dayy: 用于网卡数据收发的
+	NET_RX_SOFTIRQ,                 //dayy: 用于网卡数据收发的
+	BLOCK_SOFTIRQ,                  //dayy: 用于block device的
+	BLOCK_IOPOLL_SOFTIRQ,           //dayy: 用于block device的
+	TASKLET_SOFTIRQ,                //dayy: 用于普通的tasklet
+	SCHED_SOFTIRQ,                  //dayy: 用于多cpu之间负载均衡的
 	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
 			    numbering. Sigh! */
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
@@ -486,14 +486,14 @@ static inline struct task_struct *this_cpu_ksoftirqd(void)
 
 struct tasklet_struct
 {
-	struct tasklet_struct *next;
-	unsigned long state;
-	atomic_t count;
-	void (*func)(unsigned long);
-	unsigned long data;
+	struct tasklet_struct *next;        //dayy: 链表中的下一个tasklet
+	unsigned long state;                //dayy: tasklet的状态
+	atomic_t count;                     //dayy: 引用计数器
+	void (*func)(unsigned long);        //dayy: tasklet处理函数，参数即下边的data
+	unsigned long data;                 //dayy: 给tasklet处理函数的参数 
 };
 
-#define DECLARE_TASKLET(name, func, data) \
+#define DECLARE_TASKLET(name, func, data) \         //dayy: 静态定义并初始化一个tasklet 内核微线程
 struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(0), func, data }
 
 #define DECLARE_TASKLET_DISABLED(name, func, data) \
@@ -529,7 +529,7 @@ static inline void tasklet_unlock_wait(struct tasklet_struct *t)
 #endif
 
 extern void __tasklet_schedule(struct tasklet_struct *t);
-
+//dayy: 当需要执行tasklet时，使用tasklet_schedule()函数来调度它。这会导致tasklet被添加到软中断队列中，等待执行。
 static inline void tasklet_schedule(struct tasklet_struct *t)
 {
 	if (!test_and_set_bit(TASKLET_STATE_SCHED, &t->state))

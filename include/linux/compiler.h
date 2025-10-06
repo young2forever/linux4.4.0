@@ -3,19 +3,19 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef __CHECKER__
-# define __user		__attribute__((noderef, address_space(1)))
-# define __kernel	__attribute__((address_space(0)))
+#ifdef __CHECKER__                                                  //dayy: 此宏开启sparse工具检测
+# define __user		__attribute__((noderef, address_space(1)))      //dayy: 修饰非解引用变量，且在用户地址空间内(1)
+# define __kernel	__attribute__((address_space(0)))               //dayy: 内核地址空间(0)
 # define __safe		__attribute__((safe))
-# define __force	__attribute__((force))
-# define __nocast	__attribute__((nocast))
-# define __iomem	__attribute__((noderef, address_space(2)))
+# define __force	__attribute__((force))                          //dayy: 变量可进行强制转换
+# define __nocast	__attribute__((nocast))                         //dayy: 参数类型必须与实际参数一致
+# define __iomem	__attribute__((noderef, address_space(2)))      //dayy: 修饰非解引用变量，且在设备地址空间(2)
 # define __must_hold(x)	__attribute__((context(x,1,1)))
-# define __acquires(x)	__attribute__((context(x,0,1)))
-# define __releases(x)	__attribute__((context(x,1,0)))
-# define __acquire(x)	__context__(x,1)
-# define __release(x)	__context__(x,-1)
-# define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
+# define __acquires(x)	__attribute__((context(x,0,1)))             //dayy: 参数x，在执行前引用计数必须为0,执行后，引用计数必须为1
+# define __releases(x)	__attribute__((context(x,1,0)))             //dayy: 参数x，在执行前引用计数必须为1,执行后，必须为0
+# define __acquire(x)	__context__(x,1)                            //dayy: 参数x的引用计数在执行后+1
+# define __release(x)	__context__(x,-1)                           //dayy: 参数x的引用计数在执行后-1
+# define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)      //dayy: 参数c为0,则返回0;如果参数c不为0,x的引用计数+1,并且返回1
 # define __percpu	__attribute__((noderef, address_space(3)))
 # define __pmem		__attribute__((noderef, address_space(5)))
 #ifdef CONFIG_SPARSE_RCU_POINTER
@@ -23,8 +23,8 @@
 #else
 # define __rcu
 #endif
-extern void __chk_user_ptr(const volatile void __user *);
-extern void __chk_io_ptr(const volatile void __iomem *);
+extern void __chk_user_ptr(const volatile void __user *);           //dayy: 检查用户地址空间指针
+extern void __chk_io_ptr(const volatile void __iomem *);            //dayy: 检查设备地址空间指针
 #else
 # define __user
 # define __kernel
@@ -52,7 +52,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 
 #ifdef __KERNEL__
 
-#ifdef __GNUC__
+#ifdef __GNUC__                                                     //dayy: __GNUC__ 该宏表示GCC的版本
 #include <linux/compiler-gcc.h>
 #endif
 
@@ -80,7 +80,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * Generic compiler-dependent macros required for kernel
  * build go below this comment. Actual compiler/compiler version
  * specific implementations come from the above header files
- */
+ */         //dayy: 在内核编译的时候，所需要的宏定义在该注释下面。真正的编译器或者是编译器版本实现在上面的头文件中。
 
 struct ftrace_branch_data {
 	const char *func;
@@ -106,9 +106,9 @@ struct ftrace_branch_data {
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
 void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
-
-#define likely_notrace(x)	__builtin_expect(!!(x), 1)
-#define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
+//dayy: __builtin_expect()是有GCC或者是intel编译器提供的实现.提供该实现的目的是为了优化代码，避免过度跳转带来的性能上的下降。
+#define likely_notrace(x)	__builtin_expect(!!(x), 1)              //dayy: 表示x的值为1的可能性比较大                 
+#define unlikely_notrace(x)	__builtin_expect(!!(x), 0)              //dayy: 表示x的值为0的可能性比较大
 
 #define __branch_check__(x, expect) ({					\
 			int ______r;					\

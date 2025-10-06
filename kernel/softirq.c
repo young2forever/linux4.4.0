@@ -52,11 +52,11 @@
 irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
 EXPORT_SYMBOL(irq_stat);
 #endif
-
+//dayy: 软中断通过softirq_vec向量表管理
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
-
+//dayy: 对应10个软中断
 const char * const softirq_to_name[NR_SOFTIRQS] = {
 	"HI", "TIMER", "NET_TX", "NET_RX", "BLOCK", "BLOCK_IOPOLL",
 	"TASKLET", "SCHED", "HRTIMER", "RCU"
@@ -337,7 +337,7 @@ void irq_enter(void)
 
 	__irq_enter();
 }
-
+//dayy: 触发软件中断处理
 static inline void invoke_softirq(void)
 {
 	if (!force_irqthreads) {
@@ -377,7 +377,7 @@ static inline void tick_irq_exit(void)
 /*
  * Exit an interrupt context. Process softirqs if needed and possible:
  */
-void irq_exit(void)
+void irq_exit(void)     //dayy: 退出中断上下文
 {
 #ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
 	local_irq_disable();
@@ -388,7 +388,7 @@ void irq_exit(void)
 	account_irq_exit_time(current);
 	preempt_count_sub(HARDIRQ_OFFSET);
 	if (!in_interrupt() && local_softirq_pending())
-		invoke_softirq();
+		invoke_softirq();       //dayy: 触发软件中断的处理
 
 	tick_irq_exit();
 	rcu_irq_exit();
@@ -411,10 +411,10 @@ inline void raise_softirq_irqoff(unsigned int nr)
 	 * Otherwise we wake up ksoftirqd to make sure we
 	 * schedule the softirq soon.
 	 */
-	if (!in_interrupt())
+	if (!in_interrupt())        //dayy: 判断现在是否在中断上下文中，或者软中断是否被禁止，调用wakeup_softirqd函数用来唤醒本CPU上的softirqd这个内核线程
 		wakeup_softirqd();
 }
-
+//dayy: 触发本地CPU上的softirq
 void raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
@@ -429,7 +429,7 @@ void __raise_softirq_irqoff(unsigned int nr)
 	trace_softirq_raise(nr);
 	or_softirq_pending(1UL << nr);
 }
-
+//dayy: 第一个参数 nr 是之前的 enum 结构中定义的枚举值，第二个参数 action 是一个函数指针，指向需要执行的函数。
 void open_softirq(int nr, void (*action)(struct softirq_action *))
 {
 	softirq_vec[nr].action = action;
@@ -553,7 +553,7 @@ static void tasklet_hi_action(struct softirq_action *a)
 		local_irq_enable();
 	}
 }
-
+//dayy: 通过tasklet_init来初始化tasklet
 void tasklet_init(struct tasklet_struct *t,
 		  void (*func)(unsigned long), unsigned long data)
 {
@@ -642,8 +642,8 @@ void __init softirq_init(void)
 			&per_cpu(tasklet_hi_vec, cpu).head;
 	}
 
-	open_softirq(TASKLET_SOFTIRQ, tasklet_action);
-	open_softirq(HI_SOFTIRQ, tasklet_hi_action);
+	open_softirq(TASKLET_SOFTIRQ, tasklet_action);  //dayy: 开启常规tasklet
+	open_softirq(HI_SOFTIRQ, tasklet_hi_action);    //dayy: 开启高优先级tasklet
 }
 
 static int ksoftirqd_should_run(unsigned int cpu)
